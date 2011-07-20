@@ -552,7 +552,7 @@ public class Client {
         }
 
         long timestamp = System.currentTimeMillis() * 1000;
-        Column col = new Column(ByteBuffer.wrap(key.getBytes()));
+        Column col = new Column(ByteBuffer.wrap(column.getBytes()));
         col.setValue(ByteBuffer.wrap(value.getBytes()));
         col.setTimestamp(timestamp);
 
