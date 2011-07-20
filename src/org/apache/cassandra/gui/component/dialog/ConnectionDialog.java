@@ -32,6 +32,7 @@ public class ConnectionDialog extends JDialog {
     public ConnectionDialog(JFrame owner){
         super(owner);
 
+        hostText.setText(Client.DEFAULT_THRIFT_HOST);
         thriftPortText.setText(String.valueOf(Client.DEFAULT_THRIFT_PORT));
         jmxPortTextField.setText(String.valueOf(Client.DEFAULT_JMX_PORT));
 

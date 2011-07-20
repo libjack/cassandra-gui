@@ -33,7 +33,7 @@ import org.apache.thrift.transport.TTransportException;
 public class Client {
     public static final String DEFAULT_THRIFT_HOST = "localhost";
     public static final int DEFAULT_THRIFT_PORT = 9160;
-    public static final int DEFAULT_JMX_PORT = 8080;
+    public static final int DEFAULT_JMX_PORT = 7199;
 
     public enum ColumnType {
         SUPER("Super"),
@@ -190,8 +190,9 @@ public class Client {
     public void addKeyspace(String keyspaceName,
                             String strategy,
                             Map<String, String> strategyOptions,
-                            int replicationFactgor) throws InvalidRequestException, TException {
-        KsDef ksDef = new KsDef(keyspaceName, strategy, replicationFactgor, new LinkedList<CfDef>());
+                            int replicationFactgor) throws InvalidRequestException, TException, SchemaDisagreementException {
+        KsDef ksDef = new KsDef(keyspaceName, strategy, new LinkedList<CfDef>());
+        ksDef.setReplication_factor(replicationFactgor); // should be provided in strategy options
         if (strategyOptions != null) {
             ksDef.setStrategy_options(strategyOptions);
         }
@@ -202,8 +203,9 @@ public class Client {
     public void updateKeyspace(String keyspaceName,
                                String strategy,
                                Map<String, String> strategyOptions,
-                               int replicationFactgor) throws InvalidRequestException, TException {
-        KsDef ksDef = new KsDef(keyspaceName, strategy, replicationFactgor, new LinkedList<CfDef>());
+                               int replicationFactgor) throws InvalidRequestException, TException, SchemaDisagreementException {
+        KsDef ksDef = new KsDef(keyspaceName, strategy, new LinkedList<CfDef>());
+        ksDef.setReplication_factor(replicationFactgor); // this should be provided in strategy options
         if (strategyOptions != null) {
             ksDef.setStrategy_options(strategyOptions);
         }
@@ -211,12 +213,12 @@ public class Client {
         client.system_update_keyspace(ksDef);
     }
 
-    public void dropKeyspace(String keyspaceName) throws InvalidRequestException, TException {
+    public void dropKeyspace(String keyspaceName) throws InvalidRequestException, TException, SchemaDisagreementException {
         client.system_drop_keyspace(keyspaceName);
     }
 
     public void addColumnFamily(String keyspaceName,
-                                ColumnFamily cf) throws InvalidRequestException, TException {
+                                ColumnFamily cf) throws InvalidRequestException, TException, SchemaDisagreementException {
         this.keyspace = keyspaceName;
         CfDef cfDef = new CfDef(keyspaceName, cf.getColumnFamilyName());
         cfDef.setColumn_type(cf.getColumnType());
@@ -309,7 +311,7 @@ public class Client {
     }
 
     public void updateColumnFamily(String keyspaceName,
-                                   ColumnFamily cf) throws InvalidRequestException, TException {
+                                   ColumnFamily cf) throws InvalidRequestException, TException, SchemaDisagreementException {
         this.keyspace = keyspaceName;
         CfDef cfDef = new CfDef(keyspaceName, cf.getColumnFamilyName());
         cfDef.setId(cf.getId());
@@ -402,7 +404,7 @@ public class Client {
         client.system_update_column_family(cfDef);
     }
 
-    public void dropColumnFamily(String keyspaceName, String columnFamilyName) throws InvalidRequestException, TException {
+    public void dropColumnFamily(String keyspaceName, String columnFamilyName) throws InvalidRequestException, TException, SchemaDisagreementException {
         this.keyspace = keyspaceName;
         client.set_keyspace(keyspaceName);
         client.system_drop_column_family(columnFamilyName);
@@ -550,7 +552,9 @@ public class Client {
         }
 
         long timestamp = System.currentTimeMillis() * 1000;
-        Column col = new Column(ByteBuffer.wrap(key.getBytes()), ByteBuffer.wrap(value.getBytes()), timestamp);
+        Column col = new Column(ByteBuffer.wrap(key.getBytes()));
+        col.setValue(ByteBuffer.wrap(value.getBytes()));
+        col.setTimestamp(timestamp);
 
         client.set_keyspace(keyspace);
         client.insert(ByteBuffer.wrap(key.getBytes()), parent, col, ConsistencyLevel.ONE);
