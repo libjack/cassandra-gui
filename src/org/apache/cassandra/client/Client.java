@@ -192,7 +192,7 @@ public class Client {
                             Map<String, String> strategyOptions,
                             int replicationFactgor) throws InvalidRequestException, TException, SchemaDisagreementException {
         KsDef ksDef = new KsDef(keyspaceName, strategy, new LinkedList<CfDef>());
-        ksDef.setReplication_factor(replicationFactgor); // should be provided in strategy options
+        ksDef.setReplication_factor(replicationFactgor); // TODO should be provided in strategy options
         if (strategyOptions != null) {
             ksDef.setStrategy_options(strategyOptions);
         }
@@ -205,7 +205,7 @@ public class Client {
                                Map<String, String> strategyOptions,
                                int replicationFactgor) throws InvalidRequestException, TException, SchemaDisagreementException {
         KsDef ksDef = new KsDef(keyspaceName, strategy, new LinkedList<CfDef>());
-        ksDef.setReplication_factor(replicationFactgor); // this should be provided in strategy options
+        ksDef.setReplication_factor(replicationFactgor); // TODO should be provided in strategy options
         if (strategyOptions != null) {
             ksDef.setStrategy_options(strategyOptions);
         }
@@ -545,11 +545,8 @@ public class Client {
 
         ColumnParent parent;
 
-        if(superColumn == null) {
-           parent = new ColumnParent(columnFamily);
-        } else {
-            parent = new ColumnParent(superColumn);
-        }
+        parent = new ColumnParent(columnFamily);
+        parent.setSuper_column(ByteBuffer.wrap(superColumn.getBytes()));
 
         long timestamp = System.currentTimeMillis() * 1000;
         Column col = new Column(ByteBuffer.wrap(column.getBytes()));
