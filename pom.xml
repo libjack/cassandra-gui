@@ -116,15 +116,15 @@
       <groupId>org.apache.thrift</groupId>
       <artifactId>libthrift</artifactId>
       <scope>system</scope>
-      <systemPath>${basedir}/lib/libthrift-0.6.jar</systemPath>
-      <version>0.6</version>
+      <systemPath>${basedir}/lib/libthrift-0.6.1.jar</systemPath>
+      <version>0.6.1</version>
     </dependency>
     <dependency>
       <groupId>org.apache.cassandra</groupId>
       <artifactId>cassandra</artifactId>
       <scope>system</scope>
-      <systemPath>${basedir}/lib/apache-cassandra-0.8.0.jar</systemPath>
-      <version>0.8.0</version>
+      <systemPath>${basedir}/lib/apache-cassandra-0.8.1.jar</systemPath>
+      <version>0.8.1</version>
     </dependency>
   </dependencies>
 </project>

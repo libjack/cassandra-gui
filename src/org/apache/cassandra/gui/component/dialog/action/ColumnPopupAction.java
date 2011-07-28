@@ -114,7 +114,7 @@ public class ColumnPopupAction extends AbstractAction {
 				keyFound = true;
 			}
 		} catch (Exception e) {
-			JOptionPane.showMessageDialog(null, "error: " + e.getMessage());
+            JOptionPane.showMessageDialog(null, "error: " + ((e.getMessage() != null) ? e.getMessage() : e));
 			e.printStackTrace();
 			return;
 		}
@@ -241,7 +241,7 @@ public class ColumnPopupAction extends AbstractAction {
 					s == null ? null : s.getName(), cpdlg.getName(),
 					cpdlg.getValue());
 		} catch (Exception e) {
-			JOptionPane.showMessageDialog(null, "error: " + e.getMessage());
+            JOptionPane.showMessageDialog(null, "error: " + ((e.getMessage() != null) ? e.getMessage() : e));
 			e.printStackTrace();
 		}
 
