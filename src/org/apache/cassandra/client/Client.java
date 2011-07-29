@@ -322,7 +322,7 @@ public class Client {
             cfDef.setComparator_type(cf.getComparator());
         }
 
-        if (cf.getComparator().equals(ColumnType.SUPER)) {
+        if (cf.getColumnType().equalsIgnoreCase(ColumnType.SUPER.name())) {
             if (!isEmpty(cf.getSubcomparator())) {
                 cfDef.setSubcomparator_type(cf.getSubcomparator());
             }
@@ -430,7 +430,7 @@ public class Client {
      * @throws TException
      * @throws InvalidRequestException
      */
-    public Map<String, String> getColumnFamily(String keyspace, String columnFamily)
+    public Map<String, Object> getColumnFamily(String keyspace, String columnFamily)
             throws NotFoundException, TException, InvalidRequestException {
         this.keyspace = keyspace;
         this.columnFamily = columnFamily;
@@ -438,15 +438,16 @@ public class Client {
         for (Iterator<CfDef> cfIterator = client.describe_keyspace(keyspace).getCf_defsIterator(); cfIterator.hasNext();) {
             CfDef next = cfIterator.next();
             if (columnFamily.equalsIgnoreCase(next.getName())) {
-                Map<String, String> columnMetadata = new HashMap<String, String>();
+                Map<String, Object> columnMetadata = new HashMap<String, Object>();
 
                 CfDef._Fields[] fields = CfDef._Fields.values();
 
                 for (int i = 0; i < fields.length; i++) {
                     CfDef._Fields field = fields[i];
+                    // FIXME jdl change back to objects, will have to track down other NPE, etc..
                     // using string concat to avoin NPE, if the value is not null
                     // need to find an elegant solution
-                    columnMetadata.put(field.name(), next.getFieldValue(field)+"");
+                    columnMetadata.put(field.name(), next.getFieldValue(field));
                 }
 
                 return columnMetadata;
@@ -689,11 +690,25 @@ public class Client {
     	return val;
     }
     
+    private String getValidationType(java.nio.ByteBuffer nameBytes, List<ColumnDef> columns, String defaultType) {
+    	String validationType = defaultType;
+    	if (columns != null) {
+    		for (ColumnDef cdef: columns) {
+    			if (nameBytes.compareTo(cdef.bufferForName()) == 0) {
+    				validationType = cdef.getValidation_class();
+    			}
+    		}
+    	} 
+    	
+    	return validationType;
+    }
+    
     public Map<String, Key> listKeyAndValues(String keyspace, String columnFamily, String startKey, String endKey, int rows)
             throws InvalidRequestException, UnavailableException, TimedOutException, TException, UnsupportedEncodingException, NotFoundException {
         this.keyspace = keyspace;
         this.columnFamily = columnFamily;
-        Map<String, String> cfdata = getColumnFamily(keyspace, columnFamily);
+        Map<String, Object> cfdata = getColumnFamily(keyspace, columnFamily);
+        //System.out.println(cfdata.toString());
 
         Map<String, Key> m = new TreeMap<String, Key>();
 
@@ -719,19 +734,21 @@ public class Client {
         }
 
         for (KeySlice keySlice : keySlices) {
-        	String keyName = getAsString(keySlice.bufferForKey(), cfdata.get("KEY_VALIDATION_CLASS"));
+        	String keyName = getAsString(keySlice.bufferForKey(), cfdata.get("KEY_VALIDATION_CLASS").toString());
 			Key key = new Key(keyName, new TreeMap<String, SColumn>(), new TreeMap<String, Cell>());
 
             for (ColumnOrSuperColumn column : keySlice.getColumns()) {
                 key.setSuperColumn(column.isSetSuper_column());
                 if (column.isSetSuper_column()) {
                     SuperColumn scol = column.getSuper_column();
-                    String scolName = getAsString(scol.bufferForName(), cfdata.get("COMPARATOR_TYPE"));
+                    String scolName = getAsString(scol.bufferForName(), cfdata.get("COMPARATOR_TYPE").toString());
                     SColumn s = new SColumn(key, scolName, new TreeMap<String, Cell>());
                     for (Column col : scol.getColumns()) {
-                        String name = getAsString(col.bufferForName(), cfdata.get("SUBCOMPARATOR_TYPE"));
+                        String name = getAsString(col.bufferForName(), cfdata.get("SUBCOMPARATOR_TYPE").toString());
                         // FIXME, need to look at column metadata
-                        String val = new String(col.getValue(), "UTF8"); //getAsString(col.bufferForValue(), cfdata.get("DEFAULT_VALIDATION_CLASS"));
+                        //String val = new String(col.getValue(), "UTF8"); //getAsString(col.bufferForValue(), cfdata.get("DEFAULT_VALIDATION_CLASS"));
+    					@SuppressWarnings("unchecked")
+						String val = getAsString(col.bufferForValue(), getValidationType(col.bufferForName(), (List<ColumnDef>)cfdata.get("COLUMN_METADATA"), cfdata.get("DEFAULT_VALIDATION_CLASS").toString()));
                         
                         Cell c = new Cell(s,
                                           name,
@@ -743,9 +760,11 @@ public class Client {
                     key.getSColumns().put(s.getName(), s);
                 } else {
                     Column col = column.getColumn();
-                    String name = getAsString(col.bufferForName(), cfdata.get("COMPARATOR_TYPE"));
+                    String name = getAsString(col.bufferForName(), cfdata.get("COMPARATOR_TYPE").toString());
                     // FIXME, need to look at column metadata
-                    String val = new String(col.getValue(), "UTF8"); //getAsString(col.bufferForValue(), cfdata.get("DEFAULT_VALIDATION_CLASS"));
+                    //String val = new String(col.getValue(), "UTF8"); //getAsString(col.bufferForValue(), cfdata.get("DEFAULT_VALIDATION_CLASS"));
+                    @SuppressWarnings("unchecked")
+					String val = getAsString(col.bufferForValue(), getValidationType(col.bufferForName(), (List<ColumnDef>)cfdata.get("COLUMN_METADATA"), cfdata.get("DEFAULT_VALIDATION_CLASS").toString()));
                     
                     Cell c = new Cell(key,
                     					name,

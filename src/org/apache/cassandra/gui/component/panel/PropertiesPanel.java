@@ -231,9 +231,10 @@ public class PropertiesPanel extends JPanel {
     public void showColumnFamilyProperties(String keyspace, String columnFamily) {
         try {
             tableModel.setRowCount(0);
-            Map<String, String> m = client.getColumnFamily(keyspace, columnFamily);
-            for (Map.Entry<String, String> e : m.entrySet()) {
-                tableModel.addRow(new String[] {e.getKey(), e.getValue()});
+            Map<String, Object> m = client.getColumnFamily(keyspace, columnFamily);
+            for (Map.Entry<String, Object> e : m.entrySet()) {
+            	// FIXME ... column metadata is not showing up here...
+                tableModel.addRow(new String[] {e.getKey(), (e.getValue() != null) ? e.getValue().toString() : ""});
             }
         } catch (Exception e) {
             JOptionPane.showMessageDialog(null, "error: " + e.getMessage());

@@ -113,7 +113,7 @@ public class ColumnTreePanel extends JPanel {
 
     public void showRow(String keyspace, String columnFamily, String key) {
         try {
-            Map<String, String> m = client.getColumnFamily(keyspace, columnFamily);
+            Map<String, Object> m = client.getColumnFamily(keyspace, columnFamily);
             if (m.get(CfDef._Fields.COLUMN_TYPE.name()).equals(COLUMN_FAMILY_TYPE_SUPER)) {
                 client.setSuperColumn(true);
                 superColumn = true;
@@ -136,7 +136,7 @@ public class ColumnTreePanel extends JPanel {
 
     public void showRows(String keyspace, String columnFamily, String startKey, String endKey, int rows) {
         try {
-            Map<String, String> m = client.getColumnFamily(keyspace, columnFamily);
+            Map<String, Object> m = client.getColumnFamily(keyspace, columnFamily);
             if (m.get(CfDef._Fields.COLUMN_TYPE.name()).equals(COLUMN_FAMILY_TYPE_SUPER)) {
                 client.setSuperColumn(true);
                 superColumn = true;
