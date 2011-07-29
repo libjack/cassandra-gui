@@ -233,7 +233,7 @@ public class PropertiesPanel extends JPanel {
             tableModel.setRowCount(0);
             Map<String, Object> m = client.getColumnFamily(keyspace, columnFamily);
             for (Map.Entry<String, Object> e : m.entrySet()) {
-            	// FIXME ... column metadata is not showing up here...
+            	// FIXME ... column metadata is not showing up correctly, here... plus multi-line, or hover to see all, etc
                 tableModel.addRow(new String[] {e.getKey(), (e.getValue() != null) ? e.getValue().toString() : ""});
             }
         } catch (Exception e) {

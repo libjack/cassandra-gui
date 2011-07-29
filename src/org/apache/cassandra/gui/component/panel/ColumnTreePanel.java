@@ -129,7 +129,7 @@ public class ColumnTreePanel extends JPanel {
             setCursor(Cursor.getPredefinedCursor(Cursor.DEFAULT_CURSOR));
         } catch (Exception e) {
             setCursor(Cursor.getPredefinedCursor(Cursor.DEFAULT_CURSOR));
-            JOptionPane.showMessageDialog(null, "error: " + e.getMessage());
+            JOptionPane.showMessageDialog(null, "error: " + ((e.getMessage() != null) ? e.getMessage() : e));
             e.printStackTrace();
         }
     }
@@ -152,7 +152,7 @@ public class ColumnTreePanel extends JPanel {
             setCursor(Cursor.getPredefinedCursor(Cursor.DEFAULT_CURSOR));
         } catch (Exception e) {
             setCursor(Cursor.getPredefinedCursor(Cursor.DEFAULT_CURSOR));
-            JOptionPane.showMessageDialog(null, "error: " + e.getMessage());
+            JOptionPane.showMessageDialog(null, "error: " + ((e.getMessage() != null) ? e.getMessage() : e));
             e.printStackTrace();
         }
     }

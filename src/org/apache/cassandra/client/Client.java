@@ -444,7 +444,7 @@ public class Client {
 
                 for (int i = 0; i < fields.length; i++) {
                     CfDef._Fields field = fields[i];
-                    // FIXME jdl change back to objects, will have to track down other NPE, etc..
+                    // FIXME jdl changed back to objects, will just have to track down other NPE, etc..
                     // using string concat to avoin NPE, if the value is not null
                     // need to find an elegant solution
                     columnMetadata.put(field.name(), next.getFieldValue(field));
@@ -535,30 +535,37 @@ public class Client {
         return client.get_count(ByteBuffer.wrap(key.getBytes()), colParent, null, ConsistencyLevel.ONE);
     }
 
-    public Date insertColumn(String keyspace,
+    @SuppressWarnings("unchecked")
+	public Date insertColumn(String keyspace,
                              String columnFamily,
                              String key,
                              String superColumn,
                              String column,
                              String value)
-            throws InvalidRequestException, UnavailableException, TimedOutException, TException {
+            throws InvalidRequestException, UnavailableException, TimedOutException, TException, NotFoundException {
         this.keyspace = keyspace;
         this.columnFamily = columnFamily;
+        Map<String, Object> cfdata = getColumnFamily(keyspace, columnFamily);
 
         ColumnParent parent;
 
         parent = new ColumnParent(columnFamily);
+        long timestamp = System.currentTimeMillis() * 1000;
+        Column col = null;
         if (superColumn != null) {
-        	parent.setSuper_column(ByteBuffer.wrap(superColumn.getBytes()));
+        	parent.setSuper_column(getAsBytes(column, cfdata.get("COMPARATOR_TYPE").toString()));
+        	col = new Column(getAsBytes(column, cfdata.get("SUBCOMPARATOR_TYPE").toString()));
+        } else {
+        	col = new Column(getAsBytes(column, cfdata.get("COMPARATOR_TYPE").toString()));
         }
 
-        long timestamp = System.currentTimeMillis() * 1000;
-        Column col = new Column(ByteBuffer.wrap(column.getBytes()));
-        col.setValue(ByteBuffer.wrap(value.getBytes()));
+        //col.setValue(getAsBytes(value, getValidationType(col.bufferForName(), (List<ColumnDef>)cfdata.get("COLUMN_METADATA"), cfdata.get("DEFAULT_VALIDATION_CLASS").toString())));
+        // FIXME set the default to UTF8, to handle new columns..., else since by ultimate default is "Bytes", would have to type in hex...
+        col.setValue(getAsBytes(value, getValidationType(col.bufferForName(), (List<ColumnDef>)cfdata.get("COLUMN_METADATA"), "org.apache.cassandra.db.marshal.UTF8Type")));
         col.setTimestamp(timestamp);
 
         client.set_keyspace(keyspace);
-        client.insert(ByteBuffer.wrap(key.getBytes()), parent, col, ConsistencyLevel.ONE);
+        client.insert(getAsBytes(key, cfdata.get("KEY_VALIDATION_CLASS").toString()), parent, col, ConsistencyLevel.ONE);
 
         return new Date(timestamp / 1000);
     }
@@ -613,9 +620,10 @@ public class Client {
     }
 
     public Map<String, Key> getKey(String keyspace, String columnFamily, String superColumn, String key)
-            throws InvalidRequestException, UnavailableException, TimedOutException, TException, UnsupportedEncodingException {
+            throws InvalidRequestException, UnavailableException, TimedOutException, TException, UnsupportedEncodingException, NotFoundException {
         this.keyspace = keyspace;
         this.columnFamily = columnFamily;
+        Map<String, Object> cfdata = getColumnFamily(keyspace, columnFamily);
 
         Map<String, Key> m = new TreeMap<String, Key>();
 
@@ -633,7 +641,7 @@ public class Client {
 
         List<ColumnOrSuperColumn> l = null;
         try {
-            l = client.get_slice(ByteBuffer.wrap(key.getBytes()), columnParent, slicePredicate, ConsistencyLevel.ONE);
+            l = client.get_slice(getAsBytes(key, cfdata.get("KEY_VALIDATION_CLASS").toString()), columnParent, slicePredicate, ConsistencyLevel.ONE);
         } catch (Exception e) {
             return m;
         }
@@ -643,11 +651,14 @@ public class Client {
             k.setSuperColumn(column.isSetSuper_column());
             if (column.isSetSuper_column()) {
                 SuperColumn scol = column.getSuper_column();
-                SColumn s = new SColumn(k, new String(scol.getName(), "UTF8"), new TreeMap<String, Cell>());
+                String scolName = getAsString(scol.bufferForName(), cfdata.get("COMPARATOR_TYPE").toString());
+                SColumn s = new SColumn(k, scolName, new TreeMap<String, Cell>());
                 for (Column col : scol.getColumns()) {
+                    String name = getAsString(col.bufferForName(), cfdata.get("SUBCOMPARATOR_TYPE").toString());
+					@SuppressWarnings("unchecked")
+					String val = getAsString(col.bufferForValue(), getValidationType(col.bufferForName(), (List<ColumnDef>)cfdata.get("COLUMN_METADATA"), cfdata.get("DEFAULT_VALIDATION_CLASS").toString()));
                     Cell c = new Cell(s,
-                                      new String(col.getName(), "UTF8"),
-                                      new String(col.getValue(), "UTF8"),
+                                      name, val,
                                       new Date(col.getTimestamp() / 1000));
                     s.getCells().put(c.getName(), c);
                 }
@@ -655,9 +666,11 @@ public class Client {
                 k.getSColumns().put(s.getName(), s);
             } else {
                 Column col = column.getColumn();
+                String name = getAsString(col.bufferForName(), cfdata.get("COMPARATOR_TYPE").toString());
+                @SuppressWarnings("unchecked")
+				String val = getAsString(col.bufferForValue(), getValidationType(col.bufferForName(), (List<ColumnDef>)cfdata.get("COLUMN_METADATA"), cfdata.get("DEFAULT_VALIDATION_CLASS").toString()));
                 Cell c = new Cell(k,
-                                  new String(col.getName(), "UTF8"),
-                                  new String(col.getValue(), "UTF8"),
+                                  name, val,
                                   new Date(col.getTimestamp() / 1000));
                 k.getCells().put(c.getName(), c);
             }
@@ -666,6 +679,28 @@ public class Client {
         }
 
         return m;
+    }
+    
+    @SuppressWarnings("rawtypes")
+	private ByteBuffer getAsBytes(String str, String marshalType) {
+    	ByteBuffer bytes = null;
+
+    	try {
+			AbstractType abstractType = (AbstractType) Class.forName(marshalType).getDeclaredField("instance").get(null);
+			bytes = abstractType.fromString(str);
+		} catch (IllegalArgumentException e) {
+			e.printStackTrace();
+		} catch (SecurityException e) {
+			e.printStackTrace();
+		} catch (IllegalAccessException e) {
+			e.printStackTrace();
+		} catch (NoSuchFieldException e) {
+			e.printStackTrace();
+		} catch (ClassNotFoundException e) {
+			e.printStackTrace();
+		}
+    	
+    	return bytes;
     }
 
     // FIXME, much to do here..
@@ -715,8 +750,9 @@ public class Client {
         ColumnParent columnParent = new ColumnParent(columnFamily);
 
         KeyRange keyRange = new KeyRange(rows);
-        keyRange.setStart_key(ByteBuffer.wrap(startKey.getBytes()));
-        keyRange.setEnd_key(ByteBuffer.wrap(endKey.getBytes()));
+        
+        keyRange.setStart_key(getAsBytes(startKey, cfdata.get("KEY_VALIDATION_CLASS").toString()));
+        keyRange.setEnd_key(getAsBytes(endKey, cfdata.get("KEY_VALIDATION_CLASS").toString()));
 
         SliceRange sliceRange = new SliceRange();
         sliceRange.setStart(new byte[0]);
@@ -745,8 +781,6 @@ public class Client {
                     SColumn s = new SColumn(key, scolName, new TreeMap<String, Cell>());
                     for (Column col : scol.getColumns()) {
                         String name = getAsString(col.bufferForName(), cfdata.get("SUBCOMPARATOR_TYPE").toString());
-                        // FIXME, need to look at column metadata
-                        //String val = new String(col.getValue(), "UTF8"); //getAsString(col.bufferForValue(), cfdata.get("DEFAULT_VALIDATION_CLASS"));
     					@SuppressWarnings("unchecked")
 						String val = getAsString(col.bufferForValue(), getValidationType(col.bufferForName(), (List<ColumnDef>)cfdata.get("COLUMN_METADATA"), cfdata.get("DEFAULT_VALIDATION_CLASS").toString()));
                         
@@ -761,8 +795,6 @@ public class Client {
                 } else {
                     Column col = column.getColumn();
                     String name = getAsString(col.bufferForName(), cfdata.get("COMPARATOR_TYPE").toString());
-                    // FIXME, need to look at column metadata
-                    //String val = new String(col.getValue(), "UTF8"); //getAsString(col.bufferForValue(), cfdata.get("DEFAULT_VALIDATION_CLASS"));
                     @SuppressWarnings("unchecked")
 					String val = getAsString(col.bufferForValue(), getValidationType(col.bufferForName(), (List<ColumnDef>)cfdata.get("COLUMN_METADATA"), cfdata.get("DEFAULT_VALIDATION_CLASS").toString()));
                     
