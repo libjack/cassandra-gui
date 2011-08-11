@@ -5,8 +5,10 @@ import java.io.UnsupportedEncodingException;
 import java.lang.management.MemoryUsage;
 import java.nio.ByteBuffer;
 import java.util.*;
+import java.util.Map.Entry;
 
 import org.apache.cassandra.concurrent.IExecutorMBean;
+import org.apache.cassandra.concurrent.JMXEnabledThreadPoolExecutorMBean;
 import org.apache.cassandra.db.marshal.AbstractType;
 import org.apache.cassandra.dht.Token;
 import org.apache.cassandra.node.NodeInfo;
@@ -163,9 +165,9 @@ public class Client {
         List<Tpstats> l = new ArrayList<Tpstats>();
 
         NodeProbe p = new NodeProbe(endpoint, jmxPort);
-        Iterator<Map.Entry<String, IExecutorMBean>> threads = p.getThreadPoolMBeanProxies();
+        Iterator<Entry<String, JMXEnabledThreadPoolExecutorMBean>> threads = p.getThreadPoolMBeanProxies();
         for (;threads.hasNext();) {
-            Map.Entry<String, IExecutorMBean> thread = threads.next();
+            Entry<String, JMXEnabledThreadPoolExecutorMBean> thread = threads.next();
 
             Tpstats tp = new Tpstats();
             tp.setPoolName(thread.getKey());
@@ -559,9 +561,10 @@ public class Client {
         	col = new Column(getAsBytes(column, cfdata.get("COMPARATOR_TYPE").toString()));
         }
 
-        //col.setValue(getAsBytes(value, getValidationType(col.bufferForName(), (List<ColumnDef>)cfdata.get("COLUMN_METADATA"), cfdata.get("DEFAULT_VALIDATION_CLASS").toString())));
-        // FIXME set the default to UTF8, to handle new columns..., else since by ultimate default is "Bytes", would have to type in hex...
-        col.setValue(getAsBytes(value, getValidationType(col.bufferForName(), (List<ColumnDef>)cfdata.get("COLUMN_METADATA"), "org.apache.cassandra.db.marshal.UTF8Type")));
+        // FIXME.... need to somehow allow a default of UTF8, helps to enter values, perhaps when default is BYTES? cause want to Long if that is the default
+        // TODO add functionality similar to cli 'assume' command, doesn't change column family definition, only affects the gui, would want for reads as well
+        // can easily override with metadata...
+        col.setValue(getAsBytes(value, getValidationType(col.bufferForName(), (List<ColumnDef>)cfdata.get("COLUMN_METADATA"), cfdata.get("DEFAULT_VALIDATION_CLASS").toString())));
         col.setTimestamp(timestamp);
 
         client.set_keyspace(keyspace);
