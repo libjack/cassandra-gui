@@ -4,17 +4,49 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.lang.management.MemoryUsage;
 import java.nio.ByteBuffer;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
 
 import org.apache.cassandra.concurrent.IExecutorMBean;
 import org.apache.cassandra.concurrent.JMXEnabledThreadPoolExecutorMBean;
+import org.apache.cassandra.config.ConfigurationException;
+import org.apache.cassandra.db.marshal.AbstractCompositeType;
 import org.apache.cassandra.db.marshal.AbstractType;
+import org.apache.cassandra.db.marshal.TypeParser;
 import org.apache.cassandra.dht.Token;
 import org.apache.cassandra.node.NodeInfo;
 import org.apache.cassandra.node.RingNode;
 import org.apache.cassandra.node.Tpstats;
-import org.apache.cassandra.thrift.*;
+import org.apache.cassandra.thrift.Cassandra;
+import org.apache.cassandra.thrift.CfDef;
+import org.apache.cassandra.thrift.Column;
+import org.apache.cassandra.thrift.ColumnDef;
+import org.apache.cassandra.thrift.ColumnOrSuperColumn;
+import org.apache.cassandra.thrift.ColumnParent;
+import org.apache.cassandra.thrift.ColumnPath;
+import org.apache.cassandra.thrift.ConsistencyLevel;
+import org.apache.cassandra.thrift.InvalidRequestException;
+import org.apache.cassandra.thrift.KeyRange;
+import org.apache.cassandra.thrift.KeySlice;
+import org.apache.cassandra.thrift.KsDef;
+import org.apache.cassandra.thrift.NotFoundException;
+import org.apache.cassandra.thrift.SchemaDisagreementException;
+import org.apache.cassandra.thrift.SlicePredicate;
+import org.apache.cassandra.thrift.SliceRange;
+import org.apache.cassandra.thrift.SuperColumn;
+import org.apache.cassandra.thrift.TimedOutException;
+import org.apache.cassandra.thrift.TokenRange;
+import org.apache.cassandra.thrift.UnavailableException;
 import org.apache.cassandra.tools.NodeProbe;
 import org.apache.cassandra.unit.Cell;
 import org.apache.cassandra.unit.ColumnFamily;
@@ -286,15 +318,15 @@ public class Client {
         }
 
         if (!isEmpty(cf.getMemtableOperations())) {
-            cfDef.setMemtable_operations_in_millions(Double.valueOf(cf.getMemtableOperations()));
+            // FIXME @Deprecated cfDef.setMemtable_operations_in_millions(Double.valueOf(cf.getMemtableOperations()));
         }
 
         if (!isEmpty(cf.getMemtableThroughput())) {
-            cfDef.setMemtable_throughput_in_mb(Integer.valueOf(cf.getMemtableThroughput()));
+            // FIXME @Deprecated cfDef.setMemtable_throughput_in_mb(Integer.valueOf(cf.getMemtableThroughput()));
         }
 
         if (!isEmpty(cf.getMemtableFlushAfter())) {
-            cfDef.setMemtable_flush_after_mins(Integer.valueOf(cf.getMemtableFlushAfter()));
+            // FIXME @Deprecated cfDef.setMemtable_flush_after_mins(Integer.valueOf(cf.getMemtableFlushAfter()));
         }
 
         if (!isEmpty(cf.getDefaultValidationClass())) {
@@ -380,15 +412,15 @@ public class Client {
         }
 
         if (!isEmpty(cf.getMemtableOperations())) {
-            cfDef.setMemtable_operations_in_millions(Double.valueOf(cf.getMemtableOperations()));
+            // FIXME @Deprecated cfDef.setMemtable_operations_in_millions(Double.valueOf(cf.getMemtableOperations()));
         }
 
         if (!isEmpty(cf.getMemtableThroughput())) {
-            cfDef.setMemtable_throughput_in_mb(Integer.valueOf(cf.getMemtableThroughput()));
+            // FIXME @Deprecated cfDef.setMemtable_throughput_in_mb(Integer.valueOf(cf.getMemtableThroughput()));
         }
 
         if (!isEmpty(cf.getMemtableFlushAfter())) {
-            cfDef.setMemtable_flush_after_mins(Integer.valueOf(cf.getMemtableFlushAfter()));
+            // FIXME @Deprecated cfDef.setMemtable_flush_after_mins(Integer.valueOf(cf.getMemtableFlushAfter()));
         }
 
         if (!isEmpty(cf.getDefaultValidationClass())) {
@@ -480,9 +512,9 @@ public class Client {
                 cf.setKeyCacheSavePeriod(String.valueOf(cd.getKey_cache_save_period_in_seconds()));
                 cf.setReadRepairChance(String.valueOf(cd.getRead_repair_chance()));
                 cf.setGcGrace(String.valueOf(cd.getGc_grace_seconds()));
-                cf.setMemtableOperations(String.valueOf(cd.getMemtable_operations_in_millions()));
-                cf.setMemtableThroughput(String.valueOf(cd.getMemtable_throughput_in_mb()));
-                cf.setMemtableFlushAfter(String.valueOf(cd.getMemtable_flush_after_mins()));
+                // FIXME @Deprecated cf.setMemtableOperations(String.valueOf(cd.getMemtable_operations_in_millions()));
+                // FIXME @Deprecated cf.setMemtableThroughput(String.valueOf(cd.getMemtable_throughput_in_mb()));
+                // FIXME @Deprecated cf.setMemtableFlushAfter(String.valueOf(cd.getMemtable_flush_after_mins()));
                 cf.setDefaultValidationClass(cd.getDefault_validation_class());
                 cf.setMinCompactionThreshold(String.valueOf(cd.getMin_compaction_threshold()));
                 cf.setMaxCompactionThreshold(String.valueOf(cd.getMax_compaction_threshold()));
@@ -517,24 +549,26 @@ public class Client {
     }
 
     public int countColumnsRecord(String keyspace, String columnFamily, String key)
-            throws InvalidRequestException, UnavailableException, TimedOutException, TException {
+            throws InvalidRequestException, UnavailableException, TimedOutException, TException, NotFoundException {
         this.keyspace = keyspace;
         this.columnFamily = columnFamily;
+        Map<String, Object> cfdata = getColumnFamily(keyspace, columnFamily);
 
         ColumnParent colParent = new ColumnParent(columnFamily);
         //TODO - Verify if its working fine
-        return client.get_count(ByteBuffer.wrap(key.getBytes()), colParent, null, ConsistencyLevel.ONE);
+        return client.get_count(getAsBytes(key, cfdata.get("KEY_VALIDATION_CLASS").toString()), colParent, null, ConsistencyLevel.ONE);
     }
 
     public int countSuperColumnsRecord(String keyspace, String columnFamily, String superColumn, String key)
-            throws InvalidRequestException, UnavailableException, TimedOutException, TException {
+            throws InvalidRequestException, UnavailableException, TimedOutException, TException, NotFoundException {
         this.keyspace = keyspace;
         this.columnFamily = columnFamily;
+        Map<String, Object> cfdata = getColumnFamily(keyspace, columnFamily);
 
         ColumnParent colParent = new ColumnParent(columnFamily);
         colParent.setSuper_column(superColumn.getBytes());
         // TODO - verify if its working fine
-        return client.get_count(ByteBuffer.wrap(key.getBytes()), colParent, null, ConsistencyLevel.ONE);
+        return client.get_count(getAsBytes(key, cfdata.get("KEY_VALIDATION_CLASS").toString()), colParent, null, ConsistencyLevel.ONE);
     }
 
     @SuppressWarnings("unchecked")
@@ -555,7 +589,7 @@ public class Client {
         long timestamp = System.currentTimeMillis() * 1000;
         Column col = null;
         if (superColumn != null) {
-        	parent.setSuper_column(getAsBytes(column, cfdata.get("COMPARATOR_TYPE").toString()));
+        	parent.setSuper_column(getAsBytes(superColumn, cfdata.get("COMPARATOR_TYPE").toString()));
         	col = new Column(getAsBytes(column, cfdata.get("SUBCOMPARATOR_TYPE").toString()));
         } else {
         	col = new Column(getAsBytes(column, cfdata.get("COMPARATOR_TYPE").toString()));
@@ -574,52 +608,58 @@ public class Client {
     }
 
     public void removeKey(String keyspace, String columnFamily, String key)
-            throws InvalidRequestException, UnavailableException, TimedOutException, TException {
+            throws InvalidRequestException, UnavailableException, TimedOutException, TException, NotFoundException {
         this.keyspace = keyspace;
         this.columnFamily = columnFamily;
+        Map<String, Object> cfdata = getColumnFamily(keyspace, columnFamily);
 
         ColumnPath colPath = new ColumnPath(columnFamily);
         long timestamp = System.currentTimeMillis() * 1000;
 
         client.set_keyspace(keyspace);
-        client.remove(ByteBuffer.wrap(key.getBytes()), colPath, timestamp, ConsistencyLevel.ONE);
+        client.remove(getAsBytes(key, cfdata.get("KEY_VALIDATION_CLASS").toString()), colPath, timestamp, ConsistencyLevel.ONE);
     }
 
     public void removeSuperColumn(String keyspace, String columnFamily, String key, String superColumn)
-            throws InvalidRequestException, UnavailableException, TimedOutException, TException {
+            throws InvalidRequestException, UnavailableException, TimedOutException, TException, NotFoundException {
         ColumnPath colPath = new ColumnPath(columnFamily);
         colPath.setSuper_column(superColumn.getBytes());
         long timestamp = System.currentTimeMillis() * 1000;
+        Map<String, Object> cfdata = getColumnFamily(keyspace, columnFamily);
 
         client.set_keyspace(keyspace);
-        client.remove(ByteBuffer.wrap(key.getBytes()), colPath, timestamp, ConsistencyLevel.ONE);
+        client.remove(getAsBytes(key, cfdata.get("KEY_VALIDATION_CLASS").toString()), colPath, timestamp, ConsistencyLevel.ONE);
     }
 
     public void removeColumn(String keyspace, String columnFamily, String key, String column)
-            throws InvalidRequestException, UnavailableException, TimedOutException, TException {
+            throws InvalidRequestException, UnavailableException, TimedOutException, TException, NotFoundException {
         this.keyspace = keyspace;
         this.columnFamily = columnFamily;
+        Map<String, Object> cfdata = getColumnFamily(keyspace, columnFamily);
 
         ColumnPath colPath = new ColumnPath(columnFamily);
-        colPath.setColumn(column.getBytes());
+        //colPath.setColumn(column.getBytes()); 
+        colPath.setColumn(getAsBytes(column, cfdata.get("COMPARATOR_TYPE").toString()));
         long timestamp = System.currentTimeMillis() * 1000;
 
         client.set_keyspace(keyspace);
-        client.remove(ByteBuffer.wrap(key.getBytes()), colPath, timestamp, ConsistencyLevel.ONE);
+        client.remove(getAsBytes(key, cfdata.get("KEY_VALIDATION_CLASS").toString()), colPath, timestamp, ConsistencyLevel.ONE);
     }
 
     public void removeColumn(String keyspace, String columnFamily, String key, String superColumn, String column)
-            throws InvalidRequestException, UnavailableException, TimedOutException, TException {
+            throws InvalidRequestException, UnavailableException, TimedOutException, TException, NotFoundException {
         this.keyspace = keyspace;
         this.columnFamily = columnFamily;
+        Map<String, Object> cfdata = getColumnFamily(keyspace, columnFamily);
 
         ColumnPath colPath = new ColumnPath(columnFamily);
-        colPath.setSuper_column(superColumn.getBytes());
-        colPath.setColumn(column.getBytes());
+        colPath.setSuper_column(getAsBytes(superColumn, cfdata.get("COMPARATOR_TYPE").toString()));
+        colPath.setColumn(getAsBytes(column, cfdata.get("SUBCOMPARATOR_TYPE").toString()));
+        
         long timestamp = System.currentTimeMillis() * 1000;
 
         client.set_keyspace(keyspace);
-        client.remove(ByteBuffer.wrap(key.getBytes()), colPath, timestamp, ConsistencyLevel.ONE);
+        client.remove(getAsBytes(key, cfdata.get("KEY_VALIDATION_CLASS").toString()), colPath, timestamp, ConsistencyLevel.ONE);
     }
 
     public Map<String, Key> getKey(String keyspace, String columnFamily, String superColumn, String key)
@@ -689,40 +729,31 @@ public class Client {
     	ByteBuffer bytes = null;
 
     	try {
-			AbstractType abstractType = (AbstractType) Class.forName(marshalType).getDeclaredField("instance").get(null);
+			AbstractType abstractType = TypeParser.parse(marshalType);
+			if (str.isEmpty() && abstractType instanceof AbstractCompositeType) {
+				// count the types and add empty : for each ... silly way but perhaps only way for now
+				// form will be something like "CompositeType(UTF8Type, LongType, ....) 
+				int i = marshalType.indexOf('('); // don't start till open paren (
+				while ((i = marshalType.indexOf(',',i)) > 0) {
+					str += ":";
+					i++;
+				}
+			}
 			bytes = abstractType.fromString(str);
-		} catch (IllegalArgumentException e) {
-			e.printStackTrace();
-		} catch (SecurityException e) {
-			e.printStackTrace();
-		} catch (IllegalAccessException e) {
-			e.printStackTrace();
-		} catch (NoSuchFieldException e) {
-			e.printStackTrace();
-		} catch (ClassNotFoundException e) {
+		} catch (ConfigurationException e) {
 			e.printStackTrace();
 		}
-    	
     	return bytes;
     }
 
-    // FIXME, much to do here..
     @SuppressWarnings("rawtypes")
 	private String getAsString(java.nio.ByteBuffer bytes, String marshalType) {
     	String val = null;
     	//val = java.nio.charset.Charset.defaultCharset().decode(bytes.asReadOnlyBuffer()).toString();
     	try {
-			AbstractType abstractType = (AbstractType) Class.forName(marshalType).getDeclaredField("instance").get(null);
+			AbstractType abstractType = TypeParser.parse(marshalType);
 			val = abstractType.getString(bytes);
-		} catch (IllegalArgumentException e) {
-			e.printStackTrace();
-		} catch (SecurityException e) {
-			e.printStackTrace();
-		} catch (IllegalAccessException e) {
-			e.printStackTrace();
-		} catch (NoSuchFieldException e) {
-			e.printStackTrace();
-		} catch (ClassNotFoundException e) {
+		} catch (ConfigurationException e) {
 			e.printStackTrace();
 		}
     	return val;
