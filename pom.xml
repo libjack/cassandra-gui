@@ -86,16 +86,6 @@
     </dependency>
 
     <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>jcl-over-slf4j</artifactId>
-      <version>1.5.10</version>
-    </dependency>
-    <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>slf4j-api</artifactId>
-      <version>1.5.10</version>
-    </dependency>
-    <dependency>
       <groupId>ch.qos.logback</groupId>
       <artifactId>logback-core</artifactId>
       <version>0.9.18</version>
@@ -113,18 +103,14 @@
     </dependency>
 
     <dependency>
-      <groupId>org.apache.thrift</groupId>
-      <artifactId>libthrift</artifactId>
-      <scope>system</scope>
-      <systemPath>${basedir}/lib/libthrift-0.6.1.jar</systemPath>
-      <version>0.6.1</version>
+      <groupId>org.apache.cassandra</groupId>
+      <artifactId>cassandra-thrift</artifactId>
+      <version>1.0.5</version>
     </dependency>
     <dependency>
       <groupId>org.apache.cassandra</groupId>
-      <artifactId>cassandra</artifactId>
-      <scope>system</scope>
-      <systemPath>${basedir}/lib/apache-cassandra-0.8.1.jar</systemPath>
-      <version>0.8.1</version>
+      <artifactId>cassandra-all</artifactId>
+      <version>1.0.5</version>
     </dependency>
   </dependencies>
 </project>
