@@ -1,0 +1,19 @@
+# cassandra-gui
+
+a java GUI client for browsing/editing Cassandra - no high level libraries (e.g. Hector) are used, just cassandra + thrift
+
+I found the source as a google code project (http://code.google.com/a/apache-extras.org/p/cassandra-gui/) which supported Cassandra 0.7. Worked, but limited, assumed all types as String, so most browsing or updating would fail. 
+
+I needed a tool to browse and add/edit test data, so my initial updates were to get to Cassandra 0.8, and to get updates to work correctly. But then I added support to obey validation types when working with the popups to accept or display values. And more recently, added support for Composite types. See Client::getAsBytes/getAsString for details.
+
+I was using git to track local changes, and attempted to contact original author/google group to contribute. So, just decided to push here for now.
+
+## Building
+
+Maven was used in the original project, but I've been doing all my work in eclipse, so the pom may be out of date or just plain wrong. working on it.
+
+## Usage
+
+When connected to Cassandra, viewer shows Keyspaces in left pane, open desired keyspace and right click on column family name to get choices. Properties appear in upper panel, data in lower, more context menus in data panel.
+
+
