@@ -16,4 +16,9 @@ Maven was used in the original project, but I've been doing all my work in eclip
 
 When connected to Cassandra, viewer shows Keyspaces in left pane, open desired keyspace and right click on column family name to get choices. Properties appear in upper panel, data in lower, more context menus in data panel.
 
+## Short TODO List
+
+-Support counter columns
+-Support index queries
+
 

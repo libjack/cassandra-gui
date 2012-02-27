@@ -773,7 +773,7 @@ public class Client {
     }
     
     public Map<String, Key> listKeyAndValues(String keyspace, String columnFamily, String startKey, String endKey, int rows)
-            throws InvalidRequestException, UnavailableException, TimedOutException, TException, UnsupportedEncodingException, NotFoundException {
+            throws Exception {
         this.keyspace = keyspace;
         this.columnFamily = columnFamily;
         Map<String, Object> cfdata = getColumnFamily(keyspace, columnFamily);
@@ -826,7 +826,7 @@ public class Client {
                     }
 
                     key.getSColumns().put(s.getName(), s);
-                } else {
+                } else if (column.isSetColumn()){
                     Column col = column.getColumn();
                     String name = getAsString(col.bufferForName(), cfdata.get("COMPARATOR_TYPE").toString());
                     @SuppressWarnings("unchecked")
@@ -837,6 +837,8 @@ public class Client {
                     					val,
                                       new Date(col.getTimestamp() / 1000));
                     key.getCells().put(c.getName(), c);
+                } else {
+                	throw new Exception("Unsupported Column type");
                 }
             }
 
